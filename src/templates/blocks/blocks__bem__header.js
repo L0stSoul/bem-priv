@@ -1,1 +1,1 @@
-var BEMPRIV = (function() {
+(function(BEM) {

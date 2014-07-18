@@ -1,4 +1,4 @@
-var BEMPRIV = (function() {
+(function(BEM) {
 
 var hasOwnProp = Object.prototype.hasOwnProperty;
 
@@ -287,5 +287,11 @@ var BEMPRIV = inherit(/** @lends BEM.prototype */ {
 
 });
 
-    return BEMPRIV;
-})();
+BEM.PRIV = BEMPRIV;
+
+})(typeof BEM === 'undefined' ? {} : BEM);
+
+// If run within node.js (for testing)
+if (typeof exports !== "undefined") {
+    exports.BEM = BEM;
+}

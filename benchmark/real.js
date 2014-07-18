@@ -3,12 +3,12 @@ var Benchmark = require('benchmark');
 var suite = new Benchmark.Suite;
 
 var blocks = require('./real__plain');
-var BEMPRIV = require('./real__bem');
+var BEM = require('./real__bem');
 var objects = require('./real__object');
 
 suite
     .add('BEM-priv', function() {
-        BEMPRIV.json('page');
+        BEM.json('page');
     })
     .add('Plain Function', function() {
         blocks['page']();

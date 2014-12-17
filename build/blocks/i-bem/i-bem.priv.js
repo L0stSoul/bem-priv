@@ -180,24 +180,20 @@ function extend(o1, o2) {
 }
 
 function buildCheckMod(modName, modVal) {
-    return modVal ?
-        Array.isArray(modVal) ?
-            function(block) {
-                var i = 0, len = modVal.length;
-                while (i < len) {
-                    if (block.hasMod(modName, modVal[i++])) {
-                        return true;
-                    }
-                }
-                return false;
-            } :
-            function(block) {
-                return block.hasMod(modName, modVal);
-            } :
-        function(block) {
-            return block.hasMod(modName);
-        };
+
+    if (!modVal) {
+        return function(block) { return block.hasMod(modName); };
+    }
+
+    if (!Array.isArray(modVal)) {
+        return function(block) { return block.hasMod(modName, modVal); };
+    }
+
+    return function(block) {
+        return modVal.some(block.hasMod.bind(block, modName));
+    };
 }
+
 var toStr = Object.prototype.toString;
 function isFunction(obj) {
     return toStr.call(obj) === '[object Function]';
@@ -209,6 +205,7 @@ function isFunction(obj) {
  * @type Object
  */
 var blocks = {};
+var blocksById = {};
 
 /**
  * @class BEMPRIV
@@ -224,8 +221,7 @@ var BEMPRIV = inherit(/** @lends BEMPRIV.prototype */ {
      * @param {Object} data Per-Request data, shoud be provided to every block
      * @param {Object} params Block parameters
      */
-    __constructor : function(data, params) {
-
+    __constructor : function(data, params, skipInit) {
         /**
          * Per-Request data
          */
@@ -251,8 +247,9 @@ var BEMPRIV = inherit(/** @lends BEMPRIV.prototype */ {
          */
         this.params = extend(this.getDefaultParams(), params);
 
-        this.init();
-
+        if (!skipInit) {
+            this.init();
+        }
     },
 
     /**
@@ -395,6 +392,10 @@ var BEMPRIV = inherit(/** @lends BEMPRIV.prototype */ {
 
     },
 
+    elem: function(name, params) {
+        return (new this.__self.elems[name](this.data, this, params)).getBEMJSON();
+    },
+
     /**
      * Set block's custom bemjson property
      * @param {String} key
@@ -456,10 +457,11 @@ var BEMPRIV = inherit(/** @lends BEMPRIV.prototype */ {
     _name : 'bem',
 
     /**
-     * Declares blocks and creates a block class
+     * Declares blocks and elements, and creates a block class
      * @param {String} decl Block name (simple syntax) or description
      * @param {String} decl.block|decl.name Block name
      * @param {String} [decl.baseBlock] Name of the parent block
+     * @param {String} [decl.elem] Name of the declared elements
      * @param {Array} [decl.baseMix] Mixed block names
      * @param {Object} [props] Methods
      * @param {Object} [staticProps] Static methods
@@ -544,7 +546,22 @@ var BEMPRIV = inherit(/** @lends BEMPRIV.prototype */ {
 
         }
 
-        if (decl.block === baseBlock.getName()) {
+        if (decl.id) {
+            if (blocksById[decl.id]) {
+                throw new Error('Uniq id ' + decl.id + 'aleready existed');
+            }
+
+            blocksById[decl.id] = { props: props, staticProps: staticProps };
+        }
+
+        if (decl.elem) {
+            if (!blocks[decl.block].elems) {
+                blocks[decl.block].elems = [];
+            }
+            block = blocks[decl.block].elems[decl.elem] = inherit(Elem, props, staticProps);
+            block._elemName = decl.elem;
+            block._name = decl.block;
+        } else if (decl.block === baseBlock.getName()) {
             block = inherit.self(baseBlocks, props, staticProps);
         } else {
             (block = blocks[decl.block] = inherit(baseBlocks, props, staticProps))._name = decl.block;
@@ -570,7 +587,18 @@ var BEMPRIV = inherit(/** @lends BEMPRIV.prototype */ {
         } else if (block.mods) {
             params.mods = block.mods;
         }
+
         return new blocks[block.block](data, params);
+    },
+    createById: function(id, base, data, params) {
+        if (!blocksById[id]) {
+            throw new Error('Unknown Id: ' + id);
+        }
+
+        var blockProps = blocksById[id];
+        var block = inherit(base || BEMPRIV, blockProps.props, blockProps.staticProps);
+
+        return new block(data, params);
     },
 
     /**
@@ -600,7 +628,15 @@ var BEMPRIV = inherit(/** @lends BEMPRIV.prototype */ {
     block : function(name) {
         return blocks[name];
     }
+});
 
+var Elem = inherit(BEMPRIV, {
+    __constructor: function(data, parentBlock, params) {
+        this.__base.call(this, data, params, true);
+        this._bemjson.elem = this.__self._elemName;
+        this.block = parentBlock;
+        this.init();
+    }
 });
 
 

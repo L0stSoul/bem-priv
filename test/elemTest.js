@@ -5,6 +5,7 @@ var plainBench = require('../benchmark/real/real__plain');
 var bemprivBench = require('../benchmark/real/real__bem');
 var objectsBench = require('../benchmark/real/real__object');
 var baselineBemjson = require('./benchmark.json');
+var inherit = require('inherit');
 
 describe('BEMPRIV', function() {
     describe('Elems', function() {
@@ -89,5 +90,39 @@ describe('BEMPRIV', function() {
             });
             assert.equal(BEMPRIV.json('block2'), 2);
         });
+
+        it('should correctly select block by id', function() {
+            BEMPRIV.decl({ block: 'block3', id: 'test-1' }, {
+                bemjson: function() {
+                    return 1;
+                }
+            });
+            BEMPRIV.decl({ block: 'block3', id: 'test-2' }, {
+                bemjson: function() {
+                    return 2;
+                }
+            });
+
+            assert.equal(BEMPRIV.createById('test-1').bemjson(), 1);
+            assert.equal(BEMPRIV.createById('test-2').bemjson(), 2);
+        });
+
+        it('should correctly accept parent block for creation', function() {
+            BEMPRIV.decl({ block: 'block4', id: 'test-3' }, {
+                foo: function() {
+                    return 1;
+                }
+            });
+            BEMPRIV.decl({ block: 'block4', id: 'test-4' }, {
+                bemjson: function() {
+                    return this.foo();
+                }
+            });
+
+            assert.equal(BEMPRIV.createById('test-4', inherit(BEMPRIV, {
+                foo: function() { return 3; }
+            })).bemjson(), 3);
+        });
+
     });
 });

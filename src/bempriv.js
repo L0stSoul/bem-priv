@@ -36,6 +36,7 @@ function isFunction(obj) {
  * @type Object
  */
 var blocks = {};
+var blocksById = {};
 
 /**
  * @class BEMPRIV
@@ -375,6 +376,15 @@ var BEMPRIV = inherit(/** @lends BEMPRIV.prototype */ {
             });
 
         }
+
+        if (decl.id) {
+            if (blocksById[decl.id]) {
+                throw new Error('Uniq id ' + decl.id + 'aleready existed');
+            }
+
+            blocksById[decl.id] = { props: props, staticProps: staticProps };
+        }
+
         if (decl.elem) {
             if (!blocks[decl.block].elems) {
                 blocks[decl.block].elems = [];
@@ -408,7 +418,18 @@ var BEMPRIV = inherit(/** @lends BEMPRIV.prototype */ {
         } else if (block.mods) {
             params.mods = block.mods;
         }
+
         return new blocks[block.block](data, params);
+    },
+    createById: function(id, base, data, params) {
+        if (!blocksById[id]) {
+            throw new Error('Unknown Id: ' + id);
+        }
+
+        var blockProps = blocksById[id];
+        var block = inherit(base || BEMPRIV, blockProps.props, blockProps.staticProps);
+
+        return new block(data, params);
     },
 
     /**
